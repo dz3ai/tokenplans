@@ -36,8 +36,8 @@ configuration files and cost-aware routing recommendations.
 ## 3. Tech stack
 
 - **Python 3.12** + **FastAPI** (REST API + serves static frontend).
-- **SQLite** for storage (no ORM required; use `sqlite3` stdlib or SQLAlchemy —
-  decide in plan).
+- **SQLite** for storage via the stdlib `sqlite3` module with a lightweight
+  schema-versioned migration mechanism.
 - **APScheduler** for background balance polling.
 - **cryptography (Fernet)** for API key encryption at rest.
 - **Lightweight frontend:** vanilla JS + fetch + minimal CSS, no build step,
@@ -69,7 +69,7 @@ with near-zero per-agent code.
 | Table | Purpose |
 |---|---|
 | `providers` | Identity only: `id`, `name`, `slug`, `notes` |
-| `endpoints` | One provider → many endpoints. Each has `id`, `provider_id`, `name`, `api_type` (`openai` \| `anthropic`), `base_url`, auth header scheme, balance-query config |
+| `endpoints` | One provider → many endpoints. Each has `id`, `provider_id`, `name`, `api_type` (`openai` \| `anthropic`), `base_url`, auth header scheme, and its own `models` |
 | `accounts` | Credentials (encrypted API key) belonging to a provider. Many per provider. Optional `endpoint_scope` (which endpoints this key is valid for; empty = all). Also `label`, `extra` |
 | `balances` | Time series: `account_id`, `value`, `unit`, `source` (`auto` \| `manual`), `timestamp` |
 | `models` | Belong to an **endpoint**: `id`, `endpoint_id`, `model_id`, `pricing_in`, `pricing_out` (per 1M tokens), `capabilities` (coding/research/vision/…), quality/speed ratings |
@@ -108,17 +108,19 @@ endpoints:
     api_type: openai
     base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
     auth: bearer
+    models:
+      - qwen-max: {in: 1.6, out: 6.4, capabilities: [coding, research]}
   - id: qwen-anthropic
     name: "Anthropic-compatible"
     api_type: anthropic
     base_url: https://dashscope.aliyuncs.com/api/anthropic
     auth: x-api-key
+    models:
+      - qwen-max: {in: 1.6, out: 6.4, capabilities: [coding, research]}
 balance:
   endpoint: qwen-openai
   path: /api/v1/quota
   response_path: data.available
-models:
-  - qwen-max: {in: 1.6, out: 6.4, capabilities: [coding, research]}
 ```
 
 ## 7. Agent profiles (declarative YAML)
