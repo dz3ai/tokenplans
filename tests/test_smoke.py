@@ -20,10 +20,12 @@ def test_full_flow(tmp_path, monkeypatch):
             })).json()
             assert "sk-live-secret-key-000" not in str(acct)
             # manual balance
-            await client.post(f"/api/accounts/{acct['id']}/balance",
-                              json={"value": 100.0, "unit": "CNY", "source": "manual"})
+            r = await client.post(f"/api/accounts/{acct['id']}/balance",
+                                  json={"value": 100.0, "unit": "CNY", "source": "manual"})
+            assert r.status_code == 200
             # recommend returns at least one candidate
             recs = (await client.get("/api/recommend", params={"task_type": "coding"})).json()
             assert isinstance(recs, list)
+            assert len(recs) >= 1
 
     asyncio.run(run())
