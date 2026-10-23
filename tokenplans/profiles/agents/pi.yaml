@@ -1,0 +1,10 @@
+name: Pi
+slug: pi
+api_type: openai
+env:
+  - key: OPENAI_BASE_URL
+    template: "{{ endpoint.base_url }}"
+  - key: OPENAI_API_KEY
+    template: "{{ account.key }}"
+  - key: OPENAI_MODEL
+    template: "{{ model }}"

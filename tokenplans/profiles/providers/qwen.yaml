@@ -1,0 +1,32 @@
+name: Qwen
+slug: qwen
+endpoints:
+  - id: openai
+    name: OpenAI-compatible
+    api_type: openai
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    auth: bearer
+    models:
+      - id: qwen-max
+        in: 1.6
+        out: 6.4
+        capabilities: [coding, research, chat]
+      - id: qwen-plus
+        in: 0.4
+        out: 1.2
+        capabilities: [chat, research]
+  - id: anthropic
+    name: Anthropic-compatible
+    api_type: anthropic
+    base_url: https://dashscope.aliyuncs.com/api/anthropic
+    auth: bearer
+    models:
+      - id: qwen-max
+        in: 1.6
+        out: 6.4
+        capabilities: [coding, research, chat]
+balance:
+  endpoint: openai
+  path: /api/v1/quota
+  response_path: data.available
+  unit: tokens

@@ -1,0 +1,28 @@
+name: Zhipu
+slug: zhipu
+endpoints:
+  - id: openai
+    name: OpenAI-compatible
+    api_type: openai
+    base_url: https://open.bigmodel.cn/api/paas/v4
+    auth: bearer
+    models:
+      - id: glm-4.5
+        in: 4.0
+        out: 16.0
+        capabilities: [coding, research, chat]
+  - id: anthropic
+    name: Anthropic-compatible (coding plan)
+    api_type: anthropic
+    base_url: https://open.bigmodel.cn/api/anthropic
+    auth: bearer
+    models:
+      - id: glm-4.5
+        in: 4.0
+        out: 16.0
+        capabilities: [coding, research, chat]
+balance:
+  endpoint: openai
+  path: /api/paas/v4/user/balance
+  response_path: data.balance
+  unit: CNY

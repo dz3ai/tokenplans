@@ -1,0 +1,10 @@
+name: Hermes
+slug: hermes
+api_type: anthropic
+env:
+  - key: ANTHROPIC_BASE_URL
+    template: "{{ endpoint.base_url }}"
+  - key: ANTHROPIC_API_KEY
+    template: "{{ account.key }}"
+  - key: ANTHROPIC_MODEL
+    template: "{{ model }}"
