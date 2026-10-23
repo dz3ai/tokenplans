@@ -3206,7 +3206,7 @@ Local dashboard for AI token-plan accounts, balances, and agent config.
 
 ## CLI
 
-    tokenplans profiles validate path/to/profile.yaml
+    tokenplans validate path/to/profile.yaml
     tokenplans sync
 
 ## Test
