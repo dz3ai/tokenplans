@@ -93,6 +93,7 @@ def create_app() -> FastAPI:
             for a in db.list_accounts(c):
                 a = dict(a)
                 a["key_masked"] = _secrets().mask(_secrets().decrypt(a["key_encrypted"]))
+                a["latest_balance"] = db.latest_balance(c, a["id"])
                 a.pop("key_encrypted")
                 out.append(a)
             return out

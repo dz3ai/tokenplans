@@ -46,6 +46,19 @@ def test_account_key_is_masked(tmp_path, monkeypatch):
         c.close()
 
 
+def test_accounts_include_latest_balance(tmp_path, monkeypatch):
+    with _client(tmp_path, monkeypatch) as client:
+        client.post("/api/sync")
+        aid = client.post("/api/accounts", json={
+            "provider_id": 1, "label": "plan", "key": "sk-123"}).json()["id"]
+        r = client.post(f"/api/accounts/{aid}/balance",
+                        json={"value": 42.0, "unit": "CNY", "source": "manual"})
+        assert r.status_code == 200
+        accounts = client.get("/api/accounts").json()
+        match = next(a for a in accounts if a["id"] == aid)
+        assert match["latest_balance"]["value"] == 42.0
+
+
 def test_manual_balance(tmp_path, monkeypatch):
     with _client(tmp_path, monkeypatch) as client:
         client.post("/api/sync")
