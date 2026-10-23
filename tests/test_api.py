@@ -79,3 +79,23 @@ def test_recommend(tmp_path, monkeypatch):
         r = client.get("/api/recommend", params={"task_type": "coding"})
         assert r.status_code == 200
         assert isinstance(r.json(), list)
+
+
+def test_models_route(tmp_path, monkeypatch):
+    with _client(tmp_path, monkeypatch) as client:
+        client.post("/api/sync")
+        r = client.get("/api/models")
+        assert r.status_code == 200
+        assert isinstance(r.json(), list)
+        model_ids = [m["model_id"] for m in r.json()]
+        assert "deepseek-chat" in model_ids
+
+
+def test_app_instance_exists():
+    assert hasattr(app_mod, "app")
+
+
+def test_poll_missing_account_404(tmp_path, monkeypatch):
+    with _client(tmp_path, monkeypatch) as client:
+        r = client.post("/api/poll/9999")
+        assert r.status_code == 404

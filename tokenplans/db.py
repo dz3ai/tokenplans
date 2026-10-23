@@ -201,10 +201,14 @@ def upsert_model(conn, endpoint_id, model_id, pricing_in, pricing_out,
     ).fetchone()["id"]
 
 
-def list_models(conn, endpoint_id):
-    return [_row_to_dict(r) for r in conn.execute(
-        "SELECT * FROM models WHERE endpoint_id=? ORDER BY model_id", (endpoint_id,)
-    )]
+def list_models(conn, endpoint_id=None):
+    if endpoint_id is not None:
+        q = "SELECT * FROM models WHERE endpoint_id=? ORDER BY model_id"
+        args = (endpoint_id,)
+    else:
+        q = "SELECT * FROM models ORDER BY endpoint_id, model_id"
+        args = ()
+    return [_row_to_dict(r) for r in conn.execute(q, args)]
 
 
 def delete_models(conn, endpoint_id):

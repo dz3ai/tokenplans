@@ -1,4 +1,5 @@
 import shutil
+from contextlib import contextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -11,6 +12,7 @@ import tokenplans.agents.render as render
 import tokenplans.config as config
 import tokenplans.db as db
 import tokenplans.balance.poller as poller
+import tokenplans.providers.profiles as pp
 import tokenplans.recommend.scorer as scorer
 import tokenplans.secrets as secrets
 import tokenplans.sync as sync
@@ -51,10 +53,15 @@ def create_app() -> FastAPI:
     def index():
         return FileResponse(config.web_dir() / "index.html")
 
+    @contextmanager
     def _conn():
         c = db.connect()
         db.migrate(c)
-        return c
+        try:
+            yield c
+            c.commit()
+        finally:
+            c.close()
 
     def _secrets():
         return secrets.Secrets(secrets.load_or_create_key())
@@ -73,6 +80,11 @@ def create_app() -> FastAPI:
     def api_endpoints(provider_id: int | None = None):
         with _conn() as c:
             return db.list_endpoints(c, provider_id)
+
+    @app.get("/api/models")
+    def api_models(endpoint_id: int | None = None):
+        with _conn() as c:
+            return db.list_models(c, endpoint_id)
 
     @app.get("/api/accounts")
     def api_accounts():
@@ -152,11 +164,23 @@ def create_app() -> FastAPI:
             account = db.get_account(c, account_id)
             if account is None:
                 raise HTTPException(404, "account not found")
-            endpoint = db.list_endpoints(c, account["provider_id"])[0]
-            return poller.poll_account(c, _secrets(), account_id, endpoint,
-                                       {"path": "/user/balance",
-                                        "response_path": "data.available",
-                                        "method": "GET", "unit": ""})
+            row = c.execute("SELECT slug FROM providers WHERE id=?",
+                            (account["provider_id"],)).fetchone()
+            if row is None:
+                raise HTTPException(404, "provider not found")
+            path = config.profiles_dir() / "providers" / f"{row['slug']}.yaml"
+            if not path.exists():
+                raise HTTPException(404, f"provider profile not found: {row['slug']}.yaml")
+            prof = pp.load_provider_profile(path)
+            if prof.balance is None:
+                raise HTTPException(400, "provider has no balance endpoint")
+            endpoint = next((e for e in prof.endpoints if e.pid == prof.balance.endpoint), None)
+            if endpoint is None:
+                raise HTTPException(400, "balance endpoint not found")
+            endpoint_dict = {"pid": endpoint.pid, "name": endpoint.name,
+                             "api_type": endpoint.api_type, "base_url": endpoint.base_url,
+                             "auth": endpoint.auth}
+            return poller.poll_account(c, _secrets(), account_id, endpoint_dict, prof.balance)
 
     return app
 
@@ -181,3 +205,6 @@ def _render(conn, agent_slug, account_id, endpoint_id, model):
     key = secrets.Secrets(secrets.load_or_create_key()).decrypt(account["key_encrypted"])
     rendered = render.render_agent_config(profile, dict(endpoint), key, model)
     return {"files": rendered.files, "env": rendered.env}
+
+
+app = create_app()
