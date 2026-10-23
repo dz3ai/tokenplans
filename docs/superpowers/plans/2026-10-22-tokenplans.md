@@ -2104,11 +2104,11 @@ def test_best_picks_highest_quality():
 
 def test_filters_out_of_capability():
     cands = [
-        _c(1, "coder", 0.1, 0.5, capabilities=["coding"]),
+        _c(1, "researcher", 0.1, 0.5, capabilities=["research"]),
         _c(2, "vision-only", 0.1, 0.5, capabilities=["vision"]),
     ]
     out = scorer.recommend(cands, "research", "balanced")
-    assert [r.model for r in out] == ["coder"]
+    assert [r.model for r in out] == ["researcher"]
 
 
 def test_filters_low_balance():
