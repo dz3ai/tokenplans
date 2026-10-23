@@ -70,6 +70,21 @@ def test_reasons_include_task():
     assert "coding" in " ".join(out[0].reasons)
 
 
+def test_build_candidates_respects_endpoint_scope(conn):
+    pid = db.upsert_provider(conn, "Multi", "multi")
+    e_openai = db.upsert_endpoint(conn, pid, "openai", "OpenAI", "openai",
+                                  "https://api.openai.com", "bearer")
+    e_anthropic = db.upsert_endpoint(conn, pid, "anthropic", "Anthropic", "anthropic",
+                                     "https://api.anthropic.com", "bearer")
+    db.upsert_model(conn, e_openai, "openai-model", 0.1, 0.5, ["coding"])
+    db.upsert_model(conn, e_anthropic, "anthropic-model", 0.2, 0.6, ["coding"])
+    db.create_account(conn, pid, "scoped", "enc-key", endpoint_scope=["openai"])
+
+    cands = scorer.build_candidates(conn)
+
+    assert [c["model"] for c in cands] == ["openai-model"]
+
+
 def test_build_candidates_from_db(conn):
     pid = db.upsert_provider(conn, "DeepSeek", "deepseek")
     eid = db.upsert_endpoint(conn, pid, "openai", "OpenAI", "openai",

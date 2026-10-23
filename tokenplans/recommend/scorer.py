@@ -23,7 +23,10 @@ def build_candidates(conn) -> list[dict]:
     candidates = []
     for account in db.list_accounts(conn):
         latest = db.latest_balance(conn, account["id"])
+        scope = json.loads(account["endpoint_scope_json"])
         for endpoint in db.list_endpoints(conn, account["provider_id"]):
+            if scope and endpoint["pid"] not in scope:
+                continue
             for model in db.list_models(conn, endpoint["id"]):
                 candidates.append({
                     "account_id": account["id"],

@@ -3,7 +3,10 @@ from pathlib import Path
 
 
 def app_dir() -> Path:
-    return Path(os.environ.get("TOKENPLANS_HOME", str(Path.home() / ".tokenplans")))
+    raw = os.environ.get("TOKENPLANS_HOME", "") or ""
+    if not raw:
+        return Path.home() / ".tokenplans"
+    return Path(raw).expanduser()
 
 
 def db_path() -> Path:

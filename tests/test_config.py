@@ -15,6 +15,16 @@ def test_app_dir_env_override(monkeypatch, tmp_path):
     assert config.key_path() == tmp_path / "key"
 
 
+def test_app_dir_empty_env_defaults(monkeypatch):
+    monkeypatch.setenv("TOKENPLANS_HOME", "")
+    assert config.app_dir() == Path.home() / ".tokenplans"
+
+
+def test_app_dir_tilde_expands(monkeypatch):
+    monkeypatch.setenv("TOKENPLANS_HOME", "~/foo")
+    assert config.app_dir() == Path.home() / "foo"
+
+
 def test_ensure_app_dir_creates(tmp_path, monkeypatch):
     monkeypatch.setenv("TOKENPLANS_HOME", str(tmp_path / "nested"))
     p = config.ensure_app_dir()

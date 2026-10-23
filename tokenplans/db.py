@@ -244,6 +244,14 @@ def list_accounts(conn, provider_id=None):
     return [_row_to_dict(r) for r in conn.execute(q, args)]
 
 
+def set_account_manual_override(conn, account_id, manual_override):
+    conn.execute(
+        "UPDATE accounts SET manual_override=? WHERE id=?",
+        (1 if manual_override else 0, account_id),
+    )
+    conn.commit()
+
+
 def set_account_status(conn, account_id, status, last_error=None):
     conn.execute(
         "UPDATE accounts SET status=?, last_error=? WHERE id=?",

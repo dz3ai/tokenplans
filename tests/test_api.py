@@ -108,6 +108,52 @@ def test_app_instance_exists():
     assert hasattr(app_mod, "app")
 
 
+def test_config_preview_out_of_scope_400(tmp_path, monkeypatch):
+    with _client(tmp_path, monkeypatch) as client:
+        client.post("/api/sync")
+        c = db.connect()
+        anthropic_eid = db.upsert_endpoint(c, 1, "anthropic", "Anthropic", "anthropic",
+                                           "https://api.anthropic.com", "bearer")
+        c.close()
+        aid = client.post("/api/accounts", json={
+            "provider_id": 1, "label": "scoped", "key": "sk-123",
+            "endpoint_scope": ["openai"]}).json()["id"]
+        r = client.post("/api/config/preview", json={
+            "agent_slug": "claude-code", "account_id": aid,
+            "endpoint_id": anthropic_eid, "model": "some-model"})
+        assert r.status_code == 400
+
+
+def test_create_account_missing_provider_404(tmp_path, monkeypatch):
+    with _client(tmp_path, monkeypatch) as client:
+        r = client.post("/api/accounts", json={
+            "provider_id": 9999, "label": "x", "key": "sk-1"})
+        assert r.status_code == 404
+
+
+def test_put_binding_missing_account_404(tmp_path, monkeypatch):
+    with _client(tmp_path, monkeypatch) as client:
+        r = client.put("/api/bindings/claude-code", json={
+            "account_id": 9999, "endpoint_id": 1, "model": "m"})
+        assert r.status_code == 404
+
+
+def test_manual_override_toggle(tmp_path, monkeypatch):
+    with _client(tmp_path, monkeypatch) as client:
+        client.post("/api/sync")
+        aid = client.post("/api/accounts", json={
+            "provider_id": 1, "label": "plan", "key": "sk-123"}).json()["id"]
+        r = client.post(f"/api/accounts/{aid}/override", json={"manual_override": True})
+        assert r.status_code == 200
+        assert r.json() == {"ok": True}
+        match = next(a for a in client.get("/api/accounts").json() if a["id"] == aid)
+        assert match["manual_override"] == 1
+        r = client.post(f"/api/accounts/{aid}/override", json={"manual_override": False})
+        assert r.status_code == 200
+        match = next(a for a in client.get("/api/accounts").json() if a["id"] == aid)
+        assert match["manual_override"] == 0
+
+
 def test_poll_missing_account_404(tmp_path, monkeypatch):
     with _client(tmp_path, monkeypatch) as client:
         r = client.post("/api/poll/9999")

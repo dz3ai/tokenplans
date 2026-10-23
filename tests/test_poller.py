@@ -1,6 +1,7 @@
 import json
 
 import httpx
+import yaml
 
 import tokenplans.balance.poller as poller
 import tokenplans.db as db
@@ -65,6 +66,26 @@ def test_poll_skips_manual_override(conn):
     aid, endpoint = _seed(conn, _secrets(), manual_override=1)
     results = poller.poll_all_accounts(conn, _secrets(), transport=_transport({}))
     assert results == []
+
+
+def test_resolve_balance_spec(tmp_path, conn):
+    pid = db.upsert_provider(conn, "DeepSeek", "deepseek")
+    db.upsert_endpoint(conn, pid, "openai", "OpenAI", "openai",
+                       "https://api.deepseek.com", "bearer")
+    aid = db.create_account(conn, pid, "plan", _secrets().encrypt("sk-123"))
+    profiles_dir = tmp_path / "providers"
+    profiles_dir.mkdir()
+    profile = {
+        "name": "DeepSeek", "slug": "deepseek",
+        "endpoints": [{"id": "openai", "name": "OpenAI", "api_type": "openai",
+                       "base_url": "https://api.deepseek.com", "auth": "bearer"}],
+        "balance": {"endpoint": "openai", "path": "/user/balance",
+                    "response_path": "balance_infos[0].total_balance", "unit": "CNY"},
+    }
+    (profiles_dir / "deepseek.yaml").write_text(yaml.safe_dump(profile))
+    endpoint, spec = poller.resolve_balance_spec(conn, aid, profiles_dir=profiles_dir)
+    assert endpoint["base_url"] == "https://api.deepseek.com"
+    assert spec.response_path == "balance_infos[0].total_balance"
 
 
 def test_poll_all_accounts(conn):

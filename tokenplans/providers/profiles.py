@@ -98,6 +98,22 @@ def validate_provider_profile(data: dict) -> list[str]:
                 errors.append(f"endpoints[{i}].api_type must be one of {sorted(VALID_API_TYPES)}")
             if "id" in e:
                 ids.add(e["id"])
+            models = e.get("models", [])
+            if not isinstance(models, list):
+                errors.append(f"endpoints[{i}].models must be a list")
+            else:
+                for j, m in enumerate(models):
+                    prefix = f"endpoints[{i}].models[{j}]"
+                    if not isinstance(m, dict):
+                        errors.append(f"{prefix} must be a mapping")
+                        continue
+                    if not isinstance(m.get("id"), str) or not m["id"]:
+                        errors.append(f"{prefix} must have a non-empty string id")
+                    for f in ("in", "out"):
+                        if f in m and not isinstance(m[f], (int, float)):
+                            errors.append(f"{prefix}.{f} must be numeric")
+                    if "capabilities" in m and not isinstance(m["capabilities"], list):
+                        errors.append(f"{prefix}.capabilities must be a list")
     bal = data.get("balance")
     if bal is not None:
         if not isinstance(bal, dict):

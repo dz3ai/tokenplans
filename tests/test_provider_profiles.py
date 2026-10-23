@@ -73,6 +73,13 @@ def test_validate_empty_endpoints_with_balance_returns_errors():
     assert any("balance" in e or "endpoints" in e for e in errors)
 
 
+def test_validate_model_missing_id():
+    data = dict(VALID, endpoints=[{**VALID["endpoints"][0],
+                                   "models": [{"in": 0.27, "out": 1.10}]}])
+    errors = pp.validate_provider_profile(data)
+    assert any("models" in e for e in errors)
+
+
 def test_load_from_file(tmp_path):
     f = tmp_path / "deepseek.yaml"
     f.write_text(yaml.safe_dump(VALID))

@@ -3,7 +3,9 @@ from dataclasses import dataclass
 import httpx
 
 import tokenplans.balance.parse as parse
+import tokenplans.config as config
 import tokenplans.db as db
+import tokenplans.providers.profiles as pp
 import tokenplans.secrets as secrets
 
 
@@ -50,16 +52,39 @@ def poll_account(conn, secrets, account_id, endpoint, balance_spec, transport=No
         return PollResult(ok=False, account_id=account_id, error=str(exc))
 
 
-def poll_all_accounts(conn, secrets, transport=None) -> list[PollResult]:
+def resolve_balance_spec(conn, account_id, profiles_dir=None):
+    account = db.get_account(conn, account_id)
+    if account is None:
+        return None, None
+    row = conn.execute("SELECT slug FROM providers WHERE id=?", (account["provider_id"],)).fetchone()
+    if row is None:
+        return None, None
+    if profiles_dir is None:
+        profiles_dir = config.profiles_dir() / "providers"
+    path = profiles_dir / f"{row['slug']}.yaml"
+    if not path.exists():
+        return None, None
+    prof = pp.load_provider_profile(path)
+    if prof.balance is None:
+        return None, None
+    for e in prof.endpoints:
+        if e.pid == prof.balance.endpoint:
+            endpoint = {"pid": e.pid, "name": e.name, "api_type": e.api_type,
+                        "base_url": e.base_url, "auth": e.auth}
+            return endpoint, prof.balance
+    return None, None
+
+
+def poll_all_accounts(conn, secrets, transport=None, profiles_dir=None) -> list[PollResult]:
     results = []
     for account in db.list_accounts(conn):
         if account["manual_override"]:
             continue
-        endpoints = db.list_endpoints(conn, account["provider_id"])
-        # Poll via the first endpoint; balance endpoints are provider-scoped in v1.
-        if not endpoints:
+        endpoint, spec = resolve_balance_spec(conn, account["id"], profiles_dir)
+        if endpoint is None:
+            db.set_account_status(conn, account["id"], "error", "no balance config")
+            results.append(PollResult(ok=False, account_id=account["id"],
+                                      error="no balance config"))
             continue
-        spec = {"path": "/user/balance", "response_path": "balance_infos[0].total_balance",
-                "method": "GET", "unit": ""}
-        results.append(poll_account(conn, secrets, account["id"], endpoints[0], spec, transport))
+        results.append(poll_account(conn, secrets, account["id"], endpoint, spec, transport))
     return results

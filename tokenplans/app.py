@@ -1,3 +1,5 @@
+import json
+import os
 import shutil
 from contextlib import contextmanager
 from pathlib import Path
@@ -12,7 +14,6 @@ import tokenplans.agents.render as render
 import tokenplans.config as config
 import tokenplans.db as db
 import tokenplans.balance.poller as poller
-import tokenplans.providers.profiles as pp
 import tokenplans.recommend.scorer as scorer
 import tokenplans.secrets as secrets
 import tokenplans.sync as sync
@@ -43,6 +44,10 @@ class ConfigIn(BaseModel):
     account_id: int
     endpoint_id: int
     model: str
+
+
+class OverrideIn(BaseModel):
+    manual_override: bool
 
 
 def create_app() -> FastAPI:
@@ -101,11 +106,22 @@ def create_app() -> FastAPI:
     @app.post("/api/accounts")
     def api_create_account(body: AccountIn):
         with _conn() as c:
+            if c.execute("SELECT 1 FROM providers WHERE id=?",
+                         (body.provider_id,)).fetchone() is None:
+                raise HTTPException(404, "provider not found")
             aid = db.create_account(c, body.provider_id, body.label,
                                     _secrets().encrypt(body.key),
                                     endpoint_scope=body.endpoint_scope, extra=body.extra)
             acct = db.get_account(c, aid)
             return {"id": aid, "label": acct["label"], "key_masked": _secrets().mask(body.key)}
+
+    @app.post("/api/accounts/{account_id}/override")
+    def api_override(account_id: int, body: OverrideIn):
+        with _conn() as c:
+            if db.get_account(c, account_id) is None:
+                raise HTTPException(404, "account not found")
+            db.set_account_manual_override(c, account_id, body.manual_override)
+            return {"ok": True}
 
     @app.post("/api/accounts/{account_id}/balance")
     def api_manual_balance(account_id: int, body: BalanceIn):
@@ -131,6 +147,16 @@ def create_app() -> FastAPI:
             agent = c.execute("SELECT id FROM agents WHERE slug=?", (agent_slug,)).fetchone()
             if agent is None:
                 raise HTTPException(404, "agent not found")
+            account = db.get_account(c, body.account_id)
+            if account is None:
+                raise HTTPException(404, "account not found")
+            endpoint = c.execute("SELECT * FROM endpoints WHERE id=?",
+                                 (body.endpoint_id,)).fetchone()
+            if endpoint is None:
+                raise HTTPException(404, "endpoint not found")
+            scope = json.loads(account["endpoint_scope_json"])
+            if scope and endpoint["pid"] not in scope:
+                raise HTTPException(400, "endpoint out of account scope")
             db.upsert_binding(c, agent["id"], body.account_id, body.endpoint_id, body.model)
             return {"ok": True}
 
@@ -149,7 +175,9 @@ def create_app() -> FastAPI:
                 p.parent.mkdir(parents=True, exist_ok=True)
                 if p.exists():
                     shutil.copy2(p, str(p) + ".bak")
-                p.write_text(content)
+                tmp = p.parent / (p.name + ".tmp")
+                tmp.write_text(content)
+                os.replace(tmp, p)
                 written.append(str(p))
             return {"written": written}
 
@@ -162,26 +190,12 @@ def create_app() -> FastAPI:
     @app.post("/api/poll/{account_id}")
     def api_poll(account_id: int):
         with _conn() as c:
-            account = db.get_account(c, account_id)
-            if account is None:
+            if db.get_account(c, account_id) is None:
                 raise HTTPException(404, "account not found")
-            row = c.execute("SELECT slug FROM providers WHERE id=?",
-                            (account["provider_id"],)).fetchone()
-            if row is None:
-                raise HTTPException(404, "provider not found")
-            path = config.profiles_dir() / "providers" / f"{row['slug']}.yaml"
-            if not path.exists():
-                raise HTTPException(404, f"provider profile not found: {row['slug']}.yaml")
-            prof = pp.load_provider_profile(path)
-            if prof.balance is None:
-                raise HTTPException(400, "provider has no balance endpoint")
-            endpoint = next((e for e in prof.endpoints if e.pid == prof.balance.endpoint), None)
+            endpoint, spec = poller.resolve_balance_spec(c, account_id)
             if endpoint is None:
-                raise HTTPException(400, "balance endpoint not found")
-            endpoint_dict = {"pid": endpoint.pid, "name": endpoint.name,
-                             "api_type": endpoint.api_type, "base_url": endpoint.base_url,
-                             "auth": endpoint.auth}
-            return poller.poll_account(c, _secrets(), account_id, endpoint_dict, prof.balance)
+                raise HTTPException(400, "no balance config")
+            return poller.poll_account(c, _secrets(), account_id, endpoint, spec)
 
     return app
 
@@ -196,6 +210,9 @@ def _render(conn, agent_slug, account_id, endpoint_id, model):
     endpoint = conn.execute("SELECT * FROM endpoints WHERE id=?", (endpoint_id,)).fetchone()
     if endpoint is None:
         raise HTTPException(404, "endpoint not found")
+    scope = json.loads(account["endpoint_scope_json"])
+    if scope and endpoint["pid"] not in scope:
+        raise HTTPException(400, "endpoint out of account scope")
 
     # Templates live in the YAML files; load the agent profile by slug.
     profile_path = config.profiles_dir() / "agents" / f"{agent_slug}.yaml"

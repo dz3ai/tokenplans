@@ -1,3 +1,6 @@
+import jinja2
+import pytest
+
 import tokenplans.agents.profiles as ap
 import tokenplans.agents.render as render
 
@@ -27,6 +30,13 @@ def test_renders_file_and_env():
     assert '"ANTHROPIC_API_KEY":"sk-secret"' in content
     assert '"ANTHROPIC_MODEL":"glm-4.5"' in content
     assert "https://open.bigmodel.cn/api/anthropic" in content
+
+
+def test_strict_undefined_raises():
+    p = ap.AgentProfile(name="x", slug="x", api_type="openai",
+                        env=[ap.EnvVar("KEY", "{{ account.key_typo }}")])
+    with pytest.raises(jinja2.UndefinedError):
+        render.render_agent_config(p, ENDPOINT, "k", "m")
 
 
 def test_no_templates_gives_empty():
