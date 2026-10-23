@@ -64,6 +64,15 @@ def test_validate_balance_points_to_missing_endpoint():
     assert any("balance" in e for e in errors)
 
 
+def test_validate_empty_endpoints_with_balance_returns_errors():
+    errors = pp.validate_provider_profile({
+        "name": "X", "slug": "x", "endpoints": [],
+        "balance": {"endpoint": "a", "path": "p", "response_path": "r"},
+    })
+    assert isinstance(errors, list)
+    assert any("balance" in e or "endpoints" in e for e in errors)
+
+
 def test_load_from_file(tmp_path):
     f = tmp_path / "deepseek.yaml"
     f.write_text(yaml.safe_dump(VALID))

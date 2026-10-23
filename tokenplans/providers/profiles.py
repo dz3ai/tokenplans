@@ -82,6 +82,7 @@ def validate_provider_profile(data: dict) -> list[str]:
         if field not in data:
             errors.append(f"missing required field: {field}")
     eps = data.get("endpoints", [])
+    ids = set()
     if not isinstance(eps, list) or not eps:
         errors.append("endpoints must be a non-empty list")
     else:
