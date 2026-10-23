@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>tokenplans</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>tokenplans</h1>
+    <button id="sync">Sync profiles</button>
+  </header>
+  <main>
+    <section id="accounts">
+      <h2>Accounts</h2>
+      <form id="add-account">
+        <input name="label" placeholder="label" required>
+        <input name="key" placeholder="API key" required>
+        <input name="provider_id" placeholder="provider id" required>
+        <button>Add account</button>
+      </form>
+      <table><thead><tr><th>Label</th><th>Provider</th><th>Status</th><th>Balance</th><th>Key</th></tr></thead><tbody id="account-rows"></tbody></table>
+    </section>
+    <section id="agents">
+      <h2>Agents</h2>
+      <table><thead><tr><th>Agent</th><th>API type</th><th>Action</th></tr></thead><tbody id="agent-rows"></tbody></table>
+    </section>
+    <section id="recommend">
+      <h2>Recommend</h2>
+      <select id="task-type"><option>coding</option><option>research</option><option>chat</option></select>
+      <select id="preference"><option>cheapest</option><option>balanced</option><option>best</option></select>
+      <button id="run-recommend">Recommend</button>
+      <ol id="recommend-results"></ol>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
