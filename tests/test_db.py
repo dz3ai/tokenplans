@@ -62,3 +62,30 @@ def test_api_type_check(conn):
             "INSERT INTO endpoints (provider_id, pid, name, api_type, base_url, auth) "
             "VALUES (1, 'x', 'x', 'bogus', 'http://x', 'bearer')"
         )
+
+
+def test_migrate_on_empty_connection_creates_schema(app_dir):
+    c = db.connect()
+    try:
+        db.migrate(c)
+        assert EXPECTED_TABLES <= _tables(c)
+    finally:
+        c.close()
+
+
+def test_migrate_is_noop_when_version_present(conn):
+    db.migrate(conn)
+    count = conn.execute(
+        "SELECT COUNT(*) AS n FROM schema_info"
+    ).fetchone()["n"]
+    assert count == 1
+
+
+def test_init_schema_does_not_duplicate_schema_info(conn):
+    db.init_schema(conn)
+    db.init_schema(conn)
+    db.init_schema(conn)
+    count = conn.execute(
+        "SELECT COUNT(*) AS n FROM schema_info"
+    ).fetchone()["n"]
+    assert count == 1

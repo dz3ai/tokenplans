@@ -5,7 +5,7 @@ import tokenplans.config as config
 SCHEMA_VERSION = 1
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS schema_info (version INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS schema_info (version INTEGER NOT NULL UNIQUE);
 
 CREATE TABLE IF NOT EXISTS providers (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -105,6 +105,12 @@ def init_schema(conn):
 
 
 def migrate(conn):
+    table = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_info'"
+    ).fetchone()
+    if table is None:
+        init_schema(conn)
+        return
     row = conn.execute("SELECT version FROM schema_info").fetchone()
     if row is None:
         init_schema(conn)
