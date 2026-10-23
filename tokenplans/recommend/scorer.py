@@ -58,7 +58,7 @@ def recommend(candidates, task_type="coding", preference="balanced",
         if bal is not None and bal < balance_floor:
             continue
         caps = c.get("capabilities", [])
-        if task_type != "chat" and task_type not in caps and "coding" not in caps:
+        if task_type != "chat" and task_type not in caps:
             continue
         filtered.append(c)
 
