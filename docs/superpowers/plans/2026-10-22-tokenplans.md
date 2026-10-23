@@ -79,11 +79,10 @@ tokenplans/
 - Create: `pyproject.toml`
 - Create: `.gitignore`
 - Create: `tokenplans/__init__.py`
-- Create: `tests/conftest.py`
 - Create: `tests/test_package.py`
 
 **Interfaces:**
-- Produces: importable `tokenplans` package with `tokenplans.__version__ == "0.1.0"`. The `tests/conftest.py` fixtures `app_dir` and `conn` (see below) are relied on by every later task.
+- Produces: importable `tokenplans` package with `tokenplans.__version__ == "0.1.0"`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -95,28 +94,6 @@ import tokenplans
 
 def test_version():
     assert tokenplans.__version__ == "0.1.0"
-```
-
-Create `tests/conftest.py` (used later; write it now so it's in place):
-
-```python
-import pytest
-
-import tokenplans.db as db
-
-
-@pytest.fixture
-def app_dir(tmp_path, monkeypatch):
-    monkeypatch.setenv("TOKENPLANS_HOME", str(tmp_path))
-    return tmp_path
-
-
-@pytest.fixture
-def conn(app_dir):
-    c = db.connect()
-    db.init_schema(c)
-    yield c
-    c.close()
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -168,6 +145,7 @@ tokenplans = ["profiles/**/*.yaml", "web/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 ```
 
 Create `.gitignore`:
@@ -191,11 +169,9 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add pyproject.toml .gitignore tokenplans/__init__.py tests/conftest.py tests/test_package.py
+git add pyproject.toml .gitignore tokenplans/__init__.py tests/test_package.py
 git commit -m "chore: scaffold tokenplans package"
 ```
-
-> Note: `tests/conftest.py` imports `tokenplans.db` which does not exist yet, so it will fail to collect in Tasks 1–2. That is expected; Task 3 creates `db.py`. To avoid collection errors in Tasks 1–2, run pytest scoped to specific files (as the steps above do).
 
 ---
 
@@ -314,6 +290,7 @@ git commit -m "feat: add config paths module"
 **Files:**
 - Create: `tokenplans/db.py`
 - Create: `tests/test_db.py`
+- Create: `tests/conftest.py`
 
 **Interfaces:**
 - Produces:
@@ -517,6 +494,28 @@ def migrate(conn):
     # v1 is the only version; future migrations go here keyed on row["version"].
 ```
 
+Create `tests/conftest.py` (first used by this task's tests; relied on by every later task):
+
+```python
+import pytest
+
+import tokenplans.db as db
+
+
+@pytest.fixture
+def app_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("TOKENPLANS_HOME", str(tmp_path))
+    return tmp_path
+
+
+@pytest.fixture
+def conn(app_dir):
+    c = db.connect()
+    db.init_schema(c)
+    yield c
+    c.close()
+```
+
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `pytest tests/test_db.py -v`
@@ -525,7 +524,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add tokenplans/db.py tests/test_db.py
+git add tokenplans/db.py tests/test_db.py tests/conftest.py
 git commit -m "feat: add database schema"
 ```
 
