@@ -1,0 +1,12 @@
+name: Claude Code
+slug: claude-code
+api_type: anthropic
+files:
+  - path: ~/.claude/settings.json
+    template: |
+      {"env":{"ANTHROPIC_BASE_URL":"{{ endpoint.base_url }}","ANTHROPIC_API_KEY":"{{ account.key }}","ANTHROPIC_MODEL":"{{ model }}"}}
+env:
+  - key: ANTHROPIC_BASE_URL
+    template: "{{ endpoint.base_url }}"
+  - key: ANTHROPIC_API_KEY
+    template: "{{ account.key }}"

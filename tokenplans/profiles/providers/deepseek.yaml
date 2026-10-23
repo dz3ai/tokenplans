@@ -1,0 +1,22 @@
+name: DeepSeek
+slug: deepseek
+endpoints:
+  - id: openai
+    name: OpenAI-compatible
+    api_type: openai
+    base_url: https://api.deepseek.com
+    auth: bearer
+    models:
+      - id: deepseek-chat
+        in: 0.27
+        out: 1.10
+        capabilities: [coding, research, chat]
+      - id: deepseek-reasoner
+        in: 0.55
+        out: 2.19
+        capabilities: [research, coding]
+balance:
+  endpoint: openai
+  path: /user/balance
+  response_path: balance_infos[0].total_balance
+  unit: CNY
