@@ -6,3 +6,17 @@ __pycache__/
 venv/
 dist/
 build/
+
+# Credential / local data (must never be committed)
+.tokenplans/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+key
+*.key
+.env
+.env.*
+!.env.example
